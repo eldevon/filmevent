@@ -27,11 +27,10 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.0.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.0.3" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="AuthApi.csproj" />
-  </ItemGroup>
+
 
 </Project>

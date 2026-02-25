@@ -82,6 +82,10 @@
               "target": "Package",
               "version": "[17.8.0, )"
             },
+            "Microsoft.OpenApi": {
+              "target": "Package",
+              "version": "[2.0.0, )"
+            },
             "Moq": {
               "target": "Package",
               "version": "[4.20.69, )"
@@ -99,6 +103,8 @@
               "version": "[7.0.3, )"
             },
             "coverlet.collector": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
               "target": "Package",
               "version": "[6.0.0, )"
             }

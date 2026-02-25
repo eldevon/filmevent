@@ -2716,6 +2716,7 @@
       "Microsoft.EntityFrameworkCore.InMemory >= 8.0.0",
       "Microsoft.IdentityModel.Tokens >= 7.0.3",
       "Microsoft.NET.Test.Sdk >= 17.8.0",
+      "Microsoft.OpenApi >= 2.0.0",
       "Moq >= 4.20.69",
       "Npgsql.EntityFrameworkCore.PostgreSQL >= 8.0.0",
       "Swashbuckle.AspNetCore >= 6.5.0",
@@ -2803,6 +2804,10 @@
           "Microsoft.NET.Test.Sdk": {
             "target": "Package",
             "version": "[17.8.0, )"
+          },
+          "Microsoft.OpenApi": {
+            "target": "Package",
+            "version": "[2.0.0, )"
           },
           "Moq": {
             "target": "Package",
