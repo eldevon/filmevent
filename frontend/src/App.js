@@ -24,30 +24,15 @@ const theme = createTheme({
   typography: {
     fontFamily: '"Poppins", "Roboto", "Helvetica", "Arial", sans-serif',
   },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 8,
-          textTransform: 'none',
-          fontWeight: 600,
-        },
-      },
-    },
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-root': {
-            borderRadius: 8,
-          },
-        },
-      },
-    },
-  },
 });
 
 const PrivateRoute = ({ children }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  
   return user ? children : <Navigate to="/login" />;
 };
 

@@ -16,8 +16,9 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token'));
 
-  // Configure axios defaults
-  axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  // Configure axios defaults based on environment
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  axios.defaults.baseURL = apiUrl;
 
   useEffect(() => {
     if (token) {
@@ -55,6 +56,7 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true };
     } catch (error) {
+      console.error('Login error:', error);
       return { 
         success: false, 
         error: error.response?.data || 'Login failed' 
@@ -74,6 +76,7 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true };
     } catch (error) {
+      console.error('Registration error:', error);
       return { 
         success: false, 
         error: error.response?.data || 'Registration failed' 

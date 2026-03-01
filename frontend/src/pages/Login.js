@@ -42,7 +42,7 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login您是 } = useAuth();
+  const { login } = useAuth(); // Make sure this is correctly destructured
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -63,15 +63,20 @@ const Login = () => {
     setError('');
     setLoading(true);
 
-    const result = await login(formData.email, formData.password);
-    
-    if (result.success) {
-      navigate('/user');
-    } else {
-      setError(result.error);
+    try {
+      const result = await login(formData.email, formData.password);
+      
+      if (result && result.success) {
+        navigate('/user');
+      } else {
+        setError(result?.error || 'Login failed');
+      }
+    } catch (err) {
+      setError('An error occurred during login');
+      console.error('Login error:', err);
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
