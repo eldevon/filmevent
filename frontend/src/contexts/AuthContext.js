@@ -18,11 +18,23 @@ export const AuthProvider = ({ children }) => {
 
   // Configure axios defaults based on environment
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-  axios.defaults.baseURL = apiUrl;
+  
+  // Create axios instance with custom config for Codespaces
+  const axiosInstance = axios.create({
+    baseURL: apiUrl,
+    timeout: 10000,
+    // Important for Codespaces - allows self-signed certificates
+    httpsAgent: false,
+    withCredentials: false,
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  });
 
+  // Use this instance for all requests
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       fetchUser();
     } else {
       setLoading(false);
@@ -31,7 +43,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUser = async () => {
     try {
-      const response = await axios.get('/api/auth/user');
+      const response = await axiosInstance.get('/api/auth/user');
       setUser(response.data);
     } catch (error) {
       console.error('Failed to fetch user:', error);
@@ -43,34 +55,46 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('/api/auth/login', {
+      console.log('Attempting login to:', axiosInstance.defaults.baseURL + '/api/auth/login');
+      const response = await axiosInstance.post('/api/auth/login', {
         email,
         password,
       });
       
       const { token, user } = response.data;
       localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       setToken(token);
       setUser(user);
       
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('API URL attempted:', axiosInstance.defaults.baseURL);
+      
+      let errorMessage = 'Login failed';
+      if (error.code === 'ERR_NETWORK') {
+        errorMessage = 'Network error - Cannot connect to server. Check if backend is running and ports are public.';
+      } else if (error.code === 'ERR_CERT_AUTHORITY_INVALID') {
+        errorMessage = 'SSL certificate error - This is expected in Codespaces. The backend may not be configured correctly.';
+      }
+      
       return { 
         success: false, 
-        error: error.response?.data || 'Login failed' 
+        error: error.response?.data || errorMessage 
       };
     }
   };
 
   const register = async (userData) => {
     try {
-      const response = await axios.post('/api/auth/register', userData);
+      const response = await axiosInstance.post('/api/auth/register', userData);
       
       const { token, user } = response.data;
       localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       setToken(token);
       setUser(user);
       
@@ -86,7 +110,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
+    delete axiosInstance.defaults.headers.common['Authorization'];
     setToken(null);
     setUser(null);
   };

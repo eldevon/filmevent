@@ -1,0 +1,65 @@
+# version: "3.8"
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: filmevent-postgres
+    environment:
+      POSTGRES_DB: cinema_auth
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cinema_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend/AuthApi
+      dockerfile: Dockerfile
+    container_name: filmevent-backend
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=cinema_auth;Username=postgres;Password=postgres
+      - Jwt__Key=outdoor-cinema-super-secret-key-2024-with-more-than-32-chars!
+      - Jwt__Issuer=OutdoorCinemaAuth
+      - Jwt__Audience=OutdoorCinemaClient
+    ports:
+      - "5000:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cinema_network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+      - REACT_APP_API_URL=https://${CODESPACE_NAME}-5000.preview.app.github.dev
+      
+    container_name: filmevent-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=https://${CODESPACE_NAME}-5000.preview.app.github.dev
+    depends_on:
+      - backend
+    networks:
+      - cinema_network
+
+networks:
+  cinema_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+

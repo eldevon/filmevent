@@ -3,6 +3,7 @@ using AuthApi.Data;
 using AuthApi.Middleware;
 using AuthApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -11,6 +12,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddControllers();
+
+// Configure Forwarded Headers for Codespaces
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // Add Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -63,7 +72,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false;
+    options.RequireHttpsMetadata = false; // Critical for Codespaces
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -81,24 +90,21 @@ builder.Services.AddAuthentication(options =>
 // Register services
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// Configure CORS to accept Codespaces domains
+// Configure CORS to allow Codespaces
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins(
-            "http://localhost:3000",
-            "https://localhost:3000",
-            "https://*.app.github.dev",  // Allow all Codespaces domains
-            $"https://{Environment.GetEnvironmentVariable("CODESPACE_NAME")}-3000.app.github.dev" // Specific Codespace
-            )
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+        policy.AllowAnyOrigin()  // For development only
+              .AllowAnyMethod()
+              .AllowAnyHeader();
     });
 });
 
 var app = builder.Build();
+
+// Use forwarded headers for Codespaces
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
@@ -117,8 +123,10 @@ using (var scope = app.Services.CreateScope())
     dbContext.Database.Migrate();
 }
 
-app.UseHttpsRedirection();
-app.UseCors("AllowFrontend");
+// IMPORTANT: Do NOT use HTTPS redirection in Codespaces
+// app.UseHttpsRedirection();
+
+app.UseCors("AllowAll"); // Use the permissive CORS policy
 app.UseMicroserviceGateway();
 app.UseAuthentication();
 app.UseAuthorization();

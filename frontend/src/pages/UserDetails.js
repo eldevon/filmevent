@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -12,6 +12,9 @@ import {
   Divider,
   Grid,
   Chip,
+  CircularProgress,
+  Alert,
+  Snackbar
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -19,9 +22,11 @@ import {
   Logout as LogoutIcon,
   Movie as MovieIcon,
   CalendarToday as CalendarIcon,
+  CloudUpload as CloudUploadIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { styled } from '@mui/material/styles';
+import { uploadAvatar, sendEvent } from '../services/awsService';
 
 const StyledCard = styled(Card)(({ theme }) => ({
   background: 'rgba(22, 33, 62, 0.95)',
@@ -39,6 +44,10 @@ const UserAvatar = styled(Avatar)(({ theme }) => ({
   backgroundColor: theme.palette.primary.main,
   marginBottom: theme.spacing(2),
   border: `4px solid ${theme.palette.secondary.main}`,
+  cursor: 'pointer',
+  '&:hover': {
+    opacity: 0.8,
+  },
 }));
 
 const InfoItem = styled(Box)(({ theme }) => ({
@@ -50,13 +59,99 @@ const InfoItem = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(1.5),
 }));
 
+const VisuallyHiddenInput = styled('input')({
+  clip: 'rect(0 0 0 0)',
+  clipPath: 'inset(50%)',
+  height: 1,
+  overflow: 'hidden',
+  position: 'absolute',
+  bottom: 0,
+  left: 0,
+  whiteSpace: 'nowrap',
+  width: 1,
+});
+
 const UserDetails = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [avatar, setAvatar] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleAvatarUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please select an image file');
+      showSnackbar('Please select an image file', 'error');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('File size must be less than 5MB');
+      showSnackbar('File size must be less than 5MB', 'error');
+      return;
+    }
+
+    setUploading(true);
+    setUploadError('');
+    
+    try {
+      const result = await uploadAvatar(user.id, file);
+      
+      if (result.success) {
+        setAvatarUrl(result.url);
+        setAvatar(file);
+        setUploadSuccess(true);
+        showSnackbar('Avatar uploaded successfully!', 'success');
+        
+        // Send event about avatar update to SQS
+        await sendEvent('AVATAR_UPDATED', {
+          userId: user.id,
+          avatarUrl: result.url,
+          fileName: file.name,
+          fileSize: file.size,
+          timestamp: new Date().toISOString()
+        });
+        
+        console.log('Avatar update event sent to SQS');
+      } else {
+        setUploadError(result.error || 'Failed to upload avatar');
+        showSnackbar(result.error || 'Failed to upload avatar', 'error');
+      }
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      setUploadError('Error uploading avatar. Please try again.');
+      showSnackbar('Error uploading avatar. Please try again.', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false);
   };
 
   if (!user) {
@@ -67,6 +162,15 @@ const UserDetails = () => {
   const getInitials = () => {
     return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase();
   };
+
+  // Get avatar display source
+  const getAvatarSrc = () => {
+    if (avatarUrl) return avatarUrl;
+    if (avatar) return URL.createObjectURL(avatar);
+    return null;
+  };
+
+  const avatarSrc = getAvatarSrc();
 
   return (
     <Container 
@@ -103,9 +207,47 @@ const UserDetails = () => {
         <Divider sx={{ my: 3 }} />
 
         <Box sx={{ textAlign: 'center', mb: 3 }}>
-          <UserAvatar>
-            {getInitials() || <PersonIcon sx={{ fontSize: 60 }} />}
-          </UserAvatar>
+          <label htmlFor="avatar-upload">
+            <UserAvatar
+              src={avatarSrc}
+              sx={{ cursor: uploading ? 'default' : 'pointer' }}
+            >
+              {!avatarSrc && (getInitials() || <PersonIcon sx={{ fontSize: 60 }} />)}
+            </UserAvatar>
+          </label>
+          
+          <VisuallyHiddenInput
+            accept="image/*"
+            id="avatar-upload"
+            type="file"
+            onChange={handleAvatarUpload}
+            disabled={uploading}
+          />
+          
+          <Box sx={{ mt: 2 }}>
+            <Button
+              component="span"
+              variant="outlined"
+              size="small"
+              startIcon={uploading ? <CircularProgress size={20} /> : <CloudUploadIcon />}
+              disabled={uploading}
+              onClick={() => document.getElementById('avatar-upload').click()}
+            >
+              {uploading ? 'Uploading...' : 'Upload Avatar'}
+            </Button>
+          </Box>
+          
+          {uploadError && (
+            <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
+              {uploadError}
+            </Alert>
+          )}
+          
+          {uploadSuccess && !uploadError && (
+            <Alert severity="success" sx={{ mt: 2, width: '100%' }}>
+              Avatar uploaded successfully!
+            </Alert>
+          )}
         </Box>
 
         <CardContent>
@@ -166,6 +308,17 @@ const UserDetails = () => {
           </Button>
         </Box>
       </StyledCard>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
