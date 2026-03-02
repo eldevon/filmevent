@@ -1,9 +1,13 @@
 {
   "version": 2,
-  "dgSpecHash": "ARPJ0qtUszU=",
+  "dgSpecHash": "yAqGH4HMdFI=",
   "success": true,
   "projectFilePath": "/workspaces/filmevent/backend/AuthApi/AuthApi.csproj",
   "expectedPackageFiles": [
+    "/home/codespace/.nuget/packages/awssdk.core/4.0.3.15/awssdk.core.4.0.3.15.nupkg.sha512",
+    "/home/codespace/.nuget/packages/awssdk.dynamodbv2/4.0.15/awssdk.dynamodbv2.4.0.15.nupkg.sha512",
+    "/home/codespace/.nuget/packages/awssdk.s3/4.0.18.7/awssdk.s3.4.0.18.7.nupkg.sha512",
+    "/home/codespace/.nuget/packages/awssdk.sqs/4.0.2.15/awssdk.sqs.4.0.2.15.nupkg.sha512",
     "/home/codespace/.nuget/packages/bcrypt.net-next/4.0.3/bcrypt.net-next.4.0.3.nupkg.sha512",
     "/home/codespace/.nuget/packages/humanizer.core/2.14.1/humanizer.core.2.14.1.nupkg.sha512",
     "/home/codespace/.nuget/packages/microsoft.aspnetcore.authentication.jwtbearer/10.0.3/microsoft.aspnetcore.authentication.jwtbearer.10.0.3.nupkg.sha512",
