@@ -1,0 +1,82 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: filmevent-postgres
+    environment:
+      POSTGRES_DB: cinema_auth
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cinema_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+  localstack:
+    image: localstack/localstack:latest
+    container_name: cinema_localstack
+    ports:
+      - "4566:4566"           # LocalStack Edge Port
+      - "4510-4559:4510-4559" # external service ports range
+    environment:
+      - SERVICES=s3,dynamodb,sqs,sns  # Enable specific services
+      - DEBUG=1                        # Enable debug logging
+      - DATA_DIR=/tmp/localstack/data
+      - AWS_ACCESS_KEY_ID=fake
+      - AWS_SECRET_ACCESS_KEY=fake
+      - DEFAULT_REGION=us-east-1
+    volumes:
+      - "./localstack:/var/lib/localstack"  # Volume for persistence
+      - "/var/run/docker.sock:/var/run/docker.sock"  # Required for Lambda
+    networks:
+      - cinema_network
+
+  backend:
+    build:
+      context: ./backend/AuthApi
+      dockerfile: Dockerfile
+    container_name: filmevent-backend
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=cinema_auth;Username=postgres;Password=postgres
+      - Jwt__Key=outdoor-cinema-super-secret-key-2024-with-more-than-32-chars!
+      - Jwt__Issuer=OutdoorCinemaAuth
+      - Jwt__Audience=OutdoorCinemaClient
+    ports:
+      - "5000:8080"  # This maps host port 5000 to container port 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cinema_network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=http://${CODESPACE_NAME}-5000.preview.app.github.dev
+    container_name: filmevent-frontend
+    ports:
+      - "3000:80"  # This maps host port 3000 to container port 80
+    environment:
+      - REACT_APP_API_URL=http://${CODESPACE_NAME}-5000.preview.app.github.dev
+    depends_on:
+      - backend
+    networks:
+      - cinema_network
+
+networks:
+  cinema_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
